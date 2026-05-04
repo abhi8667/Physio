@@ -10,3 +10,5 @@ __pycache__/
 test_*.py
 implementation_plan.md
 Untitled-1.md
+node_modules/
+dist/
