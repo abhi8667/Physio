@@ -48,6 +48,10 @@ interface RehabState {
   currentExercise: Exercise | null;
   exercisePlans: api.ExercisePlanItem[];
   catalogueExercises: api.CatalogueExercise[];
+  heatmapData: number[][];
+  chartTrends: { date: string; accuracy: number }[];
+  muscleDistribution: { muscle: string; sessions: number }[];
+  aiInsights: api.InsightsData | null;
   userStats: {
     totalSessions: number;
     averageAccuracy: number;
@@ -73,6 +77,8 @@ interface RehabState {
   fetchExercisePlans: () => Promise<void>;
   fetchSessions: () => Promise<void>;
   fetchReports: () => Promise<api.ReportData | null>;
+  fetchAnalytics: () => Promise<void>;
+  fetchInsights: () => Promise<void>;
 }
 
 export const useRehabStore = create<RehabState>((set, get) => ({
@@ -112,11 +118,20 @@ export const useRehabStore = create<RehabState>((set, get) => ({
   currentExercise: null,
   exercisePlans: [],
   catalogueExercises: [],
+  heatmapData: [
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+    [0, 0, 0, 0, 0, 0, 0],
+  ],
+  chartTrends: [],
+  muscleDistribution: [],
+  aiInsights: null,
   userStats: {
-    totalSessions: 24,
-    averageAccuracy: 88,
-    recoveryScore: 72,
-    streak: 5,
+    totalSessions: 0,
+    averageAccuracy: 0,
+    recoveryScore: 0,
+    streak: 0,
   },
 
   isLoading: false,
@@ -225,6 +240,33 @@ export const useRehabStore = create<RehabState>((set, get) => ({
     } catch (err: any) {
       set({ error: err.message });
       return null;
+    }
+  },
+
+  fetchAnalytics: async () => {
+    const { userId } = get();
+    if (!userId) return;
+    try {
+      const data = await api.getAnalytics(userId);
+      set({ 
+        heatmapData: data.heatmap,
+        chartTrends: data.trends,
+        muscleDistribution: data.distribution,
+        userStats: data.stats
+      });
+    } catch (err: any) {
+      set({ error: err.message });
+    }
+  },
+
+  fetchInsights: async () => {
+    const { userId } = get();
+    if (!userId) return;
+    try {
+      const data = await api.getInsights(userId);
+      set({ aiInsights: data });
+    } catch (err: any) {
+      set({ error: err.message });
     }
   },
 }));

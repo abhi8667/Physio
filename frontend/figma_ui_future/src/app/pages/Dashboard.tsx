@@ -2,26 +2,33 @@ import { useEffect } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { StatsCard } from '../components/cards/StatsCard';
 import { useRehabStore } from '../store/useRehabStore';
-import { Activity, Target, TrendingUp, Flame, Clock, CheckCircle, Dumbbell } from 'lucide-react';
+import { Activity, Target, TrendingUp, Flame, Clock, CheckCircle, Dumbbell, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
 import { Link } from 'react-router';
 
 const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const activityData = [
-  [1, 0, 2, 1, 0, 1, 2],
-  [0, 1, 1, 2, 1, 0, 1],
-  [2, 1, 0, 1, 2, 1, 0],
-  [1, 2, 1, 0, 1, 0, 2],
-];
-
 export function Dashboard() {
-  const { userStats, sessions, exercisePlans, catalogueExercises, fetchExercises, fetchExercisePlans, userId } = useRehabStore();
+  const { 
+    userStats, 
+    sessions, 
+    exercisePlans, 
+    catalogueExercises, 
+    heatmapData,
+    aiInsights,
+    fetchExercises, 
+    fetchExercisePlans, 
+    fetchAnalytics,
+    fetchInsights,
+    userId 
+  } = useRehabStore();
 
   useEffect(() => {
     fetchExercises();
     if (userId) {
       fetchExercisePlans();
+      fetchAnalytics();
+      fetchInsights();
     }
   }, [userId]);
 
@@ -53,15 +60,15 @@ export function Dashboard() {
             title="Sessions Completed"
             value={userStats.totalSessions}
             icon={Activity}
-            trend="+3 this week"
+            trend={sessions.length > 0 ? "+1 recently" : "Start your first session"}
             trendUp={true}
           />
           <StatsCard
             title="Average Accuracy"
             value={`${userStats.averageAccuracy}%`}
             icon={Target}
-            trend="+5% from last week"
-            trendUp={true}
+            trend={userStats.averageAccuracy > 80 ? "Great form!" : "Focus on posture"}
+            trendUp={userStats.averageAccuracy > 80}
           />
           <StatsCard
             title="Recovery Score"
@@ -73,8 +80,8 @@ export function Dashboard() {
             title="Current Streak"
             value={`${userStats.streak} days`}
             icon={Flame}
-            trend="Keep it going!"
-            trendUp={true}
+            trend={userStats.streak > 0 ? "Keep it going!" : "Start a new streak"}
+            trendUp={userStats.streak > 0}
           />
         </motion.div>
 
@@ -95,6 +102,14 @@ export function Dashboard() {
                 <Link
                   key={idx}
                   to="/session"
+                  onClick={() => useRehabStore.getState().setCurrentExercise({
+                    id: plan.exercise_id,
+                    name: getExerciseName(plan.exercise_id),
+                    targetMuscle: 'Target Area',
+                    difficulty: 'beginner',
+                    sets: plan.target_sets,
+                    reps: plan.target_reps
+                  })}
                   className="bg-white rounded-xl p-4 hover:shadow-md transition-all border border-border/30"
                 >
                   <div className="flex items-start justify-between mb-2">
@@ -126,19 +141,19 @@ export function Dashboard() {
           >
             <h2 className="text-xl font-semibold mb-6">Weekly Activity Heatmap</h2>
             <div className="space-y-2">
-              {activityData.map((week, weekIndex) => (
+              {heatmapData.map((week, weekIndex) => (
                 <div key={weekIndex} className="flex gap-2">
                   {week.map((intensity, dayIndex) => (
                     <div
                       key={dayIndex}
-                      className={`flex-1 h-12 rounded-lg ${
+                      className={`flex-1 h-12 rounded-lg transition-colors ${
                         intensity === 0
                           ? 'bg-gray-100'
                           : intensity === 1
-                          ? 'bg-primary/30'
-                          : 'bg-primary'
+                          ? 'bg-primary/40 shadow-sm'
+                          : 'bg-primary shadow-md'
                       }`}
-                      title={`${weekDays[dayIndex]} - ${intensity} sessions`}
+                      title={`${intensity} sessions`}
                     />
                   ))}
                 </div>
@@ -160,28 +175,19 @@ export function Dashboard() {
             className="bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-2xl p-6 border border-secondary/20"
           >
             <h3 className="font-semibold mb-4 flex items-center gap-2">
-              <Target className="w-5 h-5 text-secondary" />
+              <Sparkles className="w-5 h-5 text-secondary" />
               AI Suggestions
             </h3>
             <div className="space-y-4">
-              <div className="bg-white rounded-xl p-4">
-                <p className="text-sm font-medium mb-1">Focus on knee stability</p>
-                <p className="text-xs text-muted-foreground">
-                  Your recent sessions show room for improvement in knee extension exercises
-                </p>
-              </div>
-              <div className="bg-white rounded-xl p-4">
-                <p className="text-sm font-medium mb-1">Increase shoulder mobility</p>
-                <p className="text-xs text-muted-foreground">
-                  Try adding 2 more reps to your shoulder rotation routine
-                </p>
-              </div>
-              <div className="bg-white rounded-xl p-4">
-                <p className="text-sm font-medium mb-1">Great progress!</p>
-                <p className="text-xs text-muted-foreground">
-                  Your accuracy has improved by 12% this month
-                </p>
-              </div>
+              {aiInsights?.dashboard_suggestions.map((suggestion, idx) => (
+                <div key={idx} className="bg-white rounded-xl p-4 shadow-sm border border-secondary/10">
+                  <p className="text-sm font-medium text-foreground">{suggestion}</p>
+                </div>
+              )) || (
+                <div className="text-center py-8 text-muted-foreground">
+                  <p className="text-sm">Complete a session to get AI suggestions</p>
+                </div>
+              )}
             </div>
           </motion.div>
         </div>
@@ -194,40 +200,46 @@ export function Dashboard() {
         >
           <h2 className="text-xl font-semibold mb-6">Recent Sessions</h2>
           <div className="space-y-3">
-            {sessions.slice(0, 5).map((session) => (
-              <div
-                key={session.id}
-                className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
-              >
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
-                    <Activity className="w-6 h-6 text-primary" />
+            {sessions.length > 0 ? (
+              sessions.slice(0, 5).map((session) => (
+                <div
+                  key={session.id}
+                  className="flex items-center justify-between p-4 bg-gray-50 rounded-xl hover:bg-gray-100 transition-colors"
+                >
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center">
+                      <Activity className="w-6 h-6 text-primary" />
+                    </div>
+                    <div>
+                      <p className="font-medium">{getExerciseName(session.exerciseName)}</p>
+                      <p className="text-sm text-muted-foreground">{session.date}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="font-medium">{session.exerciseName}</p>
-                    <p className="text-sm text-muted-foreground">{session.date}</p>
+                  <div className="flex items-center gap-6">
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <Clock className="w-4 h-4" />
+                        {session.duration} min
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-sm text-muted-foreground flex items-center gap-1">
+                        <CheckCircle className="w-4 h-4" />
+                        {session.repsCompleted} reps
+                      </p>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-lg font-semibold text-primary">{session.accuracy}%</p>
+                      <p className="text-xs text-muted-foreground">Accuracy</p>
+                    </div>
                   </div>
                 </div>
-                <div className="flex items-center gap-6">
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <Clock className="w-4 h-4" />
-                      {session.duration} min
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-sm text-muted-foreground flex items-center gap-1">
-                      <CheckCircle className="w-4 h-4" />
-                      {session.repsCompleted} reps
-                    </p>
-                  </div>
-                  <div className="text-right">
-                    <p className="text-lg font-semibold text-primary">{session.accuracy}%</p>
-                    <p className="text-xs text-muted-foreground">Accuracy</p>
-                  </div>
-                </div>
+              ))
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <p>No sessions recorded yet.</p>
               </div>
-            ))}
+            )}
           </div>
         </motion.div>
       </div>

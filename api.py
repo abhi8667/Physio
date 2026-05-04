@@ -8,7 +8,8 @@ from fastapi import FastAPI, Depends, HTTPException, Body, WebSocket, WebSocketD
 from fastapi.middleware.cors import CORSMiddleware
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
-from datetime import datetime
+from datetime import datetime, timedelta
+import collections
 
 import database
 import llm_client
@@ -219,6 +220,96 @@ def get_reports(user_id: int, db: Session = Depends(database.get_db)):
         "total_duration_seconds": total_duration,
         "form_errors_summary": form_errors_summary
     }
+
+@app.get("/users/{user_id}/analytics")
+def get_analytics(user_id: int, db: Session = Depends(database.get_db)):
+    sessions = db.query(database.SessionLog).filter(database.SessionLog.user_id == user_id).order_by(database.SessionLog.date.asc()).all()
+    
+    # 1. Heatmap (Last 28 days -> 4 weeks x 7 days)
+    # End date is today, start date is 27 days ago
+    end_date = datetime.utcnow().date()
+    start_date = end_date - timedelta(days=27)
+    
+    # Initialize 4x7 grid with zeros
+    heatmap = [[0 for _ in range(7)] for _ in range(4)]
+    
+    # Map dates to session counts
+    date_counts = collections.Counter()
+    for s in sessions:
+        date_counts[s.date.date()] += 1
+    
+    for i in range(28):
+        current_day = start_date + timedelta(days=i)
+        week_idx = i // 7
+        day_idx = i % 7
+        # Intensity: 0 (none), 1 (1 session), 2 (2+ sessions)
+        count = date_counts[current_day]
+        intensity = min(count, 2)
+        heatmap[week_idx][day_idx] = intensity
+
+    # 2. Trends (Last 7 active days accuracy)
+    # Calculate accuracy per session: (reps / (reps + errors)) * 100
+    trends = []
+    for s in sessions[-10:]: # last 10 sessions
+        err_dict = json.loads(s.form_errors)
+        total_errs = sum(err_dict.values())
+        accuracy = 100
+        if (s.reps_completed + total_errs) > 0:
+            accuracy = int((s.reps_completed / (s.reps_completed + total_errs)) * 100)
+        trends.append({"date": s.date.strftime("%b %d"), "accuracy": accuracy})
+
+    # 3. Distribution (Muscle Focus)
+    # Map exercise_id to general category (simplified)
+    distribution = collections.Counter()
+    for s in sessions:
+        category = "Other"
+        eid = s.exercise_id.lower()
+        if "knee" in eid: category = "Knee"
+        elif "shoulder" in eid: category = "Shoulder"
+        elif "hip" in eid: category = "Hip"
+        elif "back" in eid: category = "Back"
+        elif "neck" in eid: category = "Neck"
+        distribution[category] += 1
+    
+    # 4. Overall Stats
+    total_accuracy = sum(t["accuracy"] for t in trends) / len(trends) if trends else 0
+    # Streak calculation
+    sorted_dates = sorted(list(date_counts.keys()), reverse=True)
+    streak = 0
+    current = end_date
+    for d in sorted_dates:
+        if d == current:
+            streak += 1
+            current -= timedelta(days=1)
+        elif d < current:
+            break
+
+    return {
+        "heatmap": heatmap,
+        "trends": trends,
+        "distribution": [{"muscle": k, "sessions": v} for k, v in distribution.items()],
+        "stats": {
+            "totalSessions": len(sessions),
+            "averageAccuracy": int(total_accuracy),
+            "recoveryScore": int(total_accuracy * 0.8 + min(len(sessions), 20)),
+            "streak": streak
+        }
+    }
+
+@app.get("/users/{user_id}/insights")
+def get_insights(user_id: int, db: Session = Depends(database.get_db)):
+    sessions = db.query(database.SessionLog).filter(database.SessionLog.user_id == user_id).order_by(database.SessionLog.date.desc()).limit(5).all()
+    
+    logs = []
+    for s in sessions:
+        logs.append({
+            "exercise": s.exercise_id,
+            "reps": s.reps_completed,
+            "errors": json.loads(s.form_errors)
+        })
+    
+    insights = llm_client.generate_insights(logs)
+    return insights
 
 class MockExercisePlanRow:
     def __init__(self, exercise_id, target_reps, target_sets, caution):

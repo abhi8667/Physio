@@ -1,44 +1,32 @@
+import { useEffect } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { useRehabStore } from '../store/useRehabStore';
-import { LineChart, Line, BarChart, Bar, RadialBarChart, RadialBar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, PolarAngleAxis } from 'recharts';
+import { LineChart, Line, BarChart, Bar, RadialBarChart, RadialBar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, PolarAngleAxis } from 'recharts';
 import { TrendingUp, Target, Flame, Award } from 'lucide-react';
 import { motion } from 'motion/react';
 
-const accuracyTrend = [
-  { date: 'Week 1', accuracy: 75 },
-  { date: 'Week 2', accuracy: 78 },
-  { date: 'Week 3', accuracy: 82 },
-  { date: 'Week 4', accuracy: 88 },
-];
-
-const dailyActivity = [
-  { day: 'Mon', sessions: 2 },
-  { day: 'Tue', sessions: 1 },
-  { day: 'Wed', sessions: 3 },
-  { day: 'Thu', sessions: 2 },
-  { day: 'Fri', sessions: 1 },
-  { day: 'Sat', sessions: 2 },
-  { day: 'Sun', sessions: 1 },
-];
-
-const recoveryScoreData = [
-  {
-    name: 'Recovery',
-    value: 72,
-    fill: '#2563EB',
-  },
-];
-
-const muscleFocus = [
-  { muscle: 'Knee', sessions: 12 },
-  { muscle: 'Shoulder', sessions: 8 },
-  { muscle: 'Hip', sessions: 6 },
-  { muscle: 'Back', sessions: 4 },
-  { muscle: 'Ankle', sessions: 3 },
-];
-
 export function Progress() {
-  const { userStats } = useRehabStore();
+  const { 
+    userStats, 
+    chartTrends, 
+    muscleDistribution, 
+    fetchAnalytics, 
+    userId 
+  } = useRehabStore();
+
+  useEffect(() => {
+    if (userId) {
+      fetchAnalytics();
+    }
+  }, [userId]);
+
+  const recoveryScoreData = [
+    {
+      name: 'Recovery',
+      value: userStats.recoveryScore,
+      fill: '#2563EB',
+    },
+  ];
 
   return (
     <Layout>
@@ -93,7 +81,7 @@ export function Progress() {
               </RadialBarChart>
             </ResponsiveContainer>
             <p className="text-center text-sm text-muted-foreground mt-4">
-              Great progress! Keep up the consistency
+              {userStats.recoveryScore > 70 ? "Great progress! Keep up the consistency" : "Starting strong! Consistency is key."}
             </p>
           </motion.div>
 
@@ -105,10 +93,10 @@ export function Progress() {
           >
             <h3 className="font-semibold mb-6 flex items-center gap-2">
               <TrendingUp className="w-5 h-5 text-primary" />
-              Accuracy Trend
+              Accuracy Trend (Last 10 Sessions)
             </h3>
             <ResponsiveContainer width="100%" height={200}>
-              <LineChart data={accuracyTrend}>
+              <LineChart data={chartTrends}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis dataKey="date" stroke="#888" />
                 <YAxis stroke="#888" domain={[0, 100]} />
@@ -135,15 +123,15 @@ export function Progress() {
           >
             <h3 className="font-semibold mb-6 flex items-center gap-2">
               <Flame className="w-5 h-5 text-orange-500" />
-              Daily Activity
+              Recent Session Accuracy
             </h3>
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={dailyActivity}>
+              <BarChart data={chartTrends}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
-                <XAxis dataKey="day" stroke="#888" />
-                <YAxis stroke="#888" />
+                <XAxis dataKey="date" stroke="#888" />
+                <YAxis stroke="#888" domain={[0, 100]} />
                 <Tooltip />
-                <Bar dataKey="sessions" fill="#2563EB" radius={[8, 8, 0, 0]} />
+                <Bar dataKey="accuracy" fill="#2563EB" radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </motion.div>
@@ -159,7 +147,7 @@ export function Progress() {
               Muscle Focus Distribution
             </h3>
             <ResponsiveContainer width="100%" height={250}>
-              <BarChart data={muscleFocus} layout="vertical">
+              <BarChart data={muscleDistribution} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
                 <XAxis type="number" stroke="#888" />
                 <YAxis dataKey="muscle" type="category" stroke="#888" />
@@ -176,22 +164,22 @@ export function Progress() {
           transition={{ delay: 0.5 }}
           className="grid md:grid-cols-3 gap-6"
         >
-          <div className="bg-gradient-to-br from-primary to-purple-600 text-white rounded-2xl p-6">
+          <div className="bg-gradient-to-br from-primary to-purple-600 text-white rounded-2xl p-6 shadow-lg shadow-primary/20">
             <p className="text-white/80 mb-2">Total Sessions</p>
             <p className="text-4xl font-bold mb-2">{userStats.totalSessions}</p>
-            <p className="text-white/90 text-sm">+12% from last month</p>
+            <p className="text-white/90 text-sm">Overall count</p>
           </div>
 
-          <div className="bg-gradient-to-br from-secondary to-teal-600 text-white rounded-2xl p-6">
+          <div className="bg-gradient-to-br from-secondary to-teal-600 text-white rounded-2xl p-6 shadow-lg shadow-secondary/20">
             <p className="text-white/80 mb-2">Current Streak</p>
             <p className="text-4xl font-bold mb-2">{userStats.streak} days</p>
             <p className="text-white/90 text-sm">Personal best!</p>
           </div>
 
-          <div className="bg-gradient-to-br from-purple-600 to-pink-600 text-white rounded-2xl p-6">
+          <div className="bg-gradient-to-br from-purple-600 to-pink-600 text-white rounded-2xl p-6 shadow-lg shadow-purple-600/20">
             <p className="text-white/80 mb-2">Avg Accuracy</p>
             <p className="text-4xl font-bold mb-2">{userStats.averageAccuracy}%</p>
-            <p className="text-white/90 text-sm">+5% improvement</p>
+            <p className="text-white/90 text-sm">Quality of movement</p>
           </div>
         </motion.div>
       </div>

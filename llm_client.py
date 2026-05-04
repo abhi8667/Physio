@@ -101,11 +101,16 @@ def generate_exercise_plan(
     Returns None on API / parse failure.
     Retries up to 3 times with exponential backoff on transient errors.
     """
-    client = _get_client()
     user_prompt = _build_user_prompt(complaint, pain_level, exercises_catalogue)
     full_prompt = f"{SYSTEM_PROMPT}\n\n{user_prompt}"
 
     model_ids = ["models/gemini-2.5-flash", "models/gemini-2.0-flash"]
+
+    try:
+        client = _get_client()
+    except EnvironmentError as exc:
+        logger.error("API Key missing: %s", exc)
+        return None
 
     for model_id in model_ids:
         for attempt in range(3):
@@ -155,3 +160,42 @@ def generate_exercise_plan(
 
     logger.error("All retries exhausted across all model IDs.")
     return None
+
+INSIGHTS_PROMPT = """You are a physiotherapy AI assistant.
+Your job is to analyze a patient's exercise history and provide actionable feedback.
+Analyze the following session data (exercise, reps, errors) and provide:
+1. Three "AI Suggestions" for the dashboard (short, encouraging, actionable).
+2. Three "Medical Recommendations" for a report (formal, clinical, specific).
+
+OUTPUT FORMAT:
+Return a single JSON object with these keys:
+{
+  "dashboard_suggestions": ["...", "...", "..."],
+  "report_recommendations": ["...", "...", "..."]
+}
+"""
+
+def generate_insights(session_logs: list) -> Optional[dict]:
+    """
+    Analyzes session logs and returns dashboard suggestions and report recommendations.
+    """
+    logs_str = json.dumps(session_logs, indent=2)
+    full_prompt = f"{INSIGHTS_PROMPT}\n\nRecent Sessions:\n{logs_str}"
+
+    try:
+        client = _get_client()
+        response = client.models.generate_content(
+            model="models/gemini-2.0-flash",
+            contents=full_prompt,
+            config=types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.2,
+            ),
+        )
+        return json.loads(response.text)
+    except Exception as exc:
+        logger.error("Failed to generate insights: %s", exc)
+        return {
+            "dashboard_suggestions": ["Keep up the good work!", "Stay consistent with your routine.", "Focus on your form."],
+            "report_recommendations": ["Continue current programme.", "Monitor pain levels daily.", "Maintain session frequency."]
+        }

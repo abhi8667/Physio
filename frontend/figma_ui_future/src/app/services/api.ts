@@ -142,6 +142,35 @@ export async function getReports(userId: number): Promise<ReportData> {
   return res.json();
 }
 
+export interface AnalyticsData {
+  heatmap: number[][];
+  trends: { date: string; accuracy: number }[];
+  distribution: { muscle: string; sessions: number }[];
+  stats: {
+    totalSessions: number;
+    averageAccuracy: number;
+    recoveryScore: number;
+    streak: number;
+  };
+}
+
+export async function getAnalytics(userId: number): Promise<AnalyticsData> {
+  const res = await fetch(`${API_BASE}/users/${userId}/analytics`);
+  if (!res.ok) throw new Error(`Failed to fetch analytics: ${res.statusText}`);
+  return res.json();
+}
+
+export interface InsightsData {
+  dashboard_suggestions: string[];
+  report_recommendations: string[];
+}
+
+export async function getInsights(userId: number): Promise<InsightsData> {
+  const res = await fetch(`${API_BASE}/users/${userId}/insights`);
+  if (!res.ok) throw new Error(`Failed to fetch insights: ${res.statusText}`);
+  return res.json();
+}
+
 // ── WebSocket for CV session ───────────────────────────────────────────────
 
 export function createSessionWebSocket(

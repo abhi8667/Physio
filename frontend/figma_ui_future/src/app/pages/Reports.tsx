@@ -1,245 +1,215 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Layout } from '../components/layout/Layout';
 import { useRehabStore } from '../store/useRehabStore';
-import { FileText, Download, Mail, Send, Calendar, Activity } from 'lucide-react';
+import { FileText, Download, Mail, ChevronRight, Activity, Target, Shield, AlertCircle, Sparkles } from 'lucide-react';
 import { motion } from 'motion/react';
+import { ReportData } from '../services/api';
 
 export function Reports() {
-  const { sessions, userStats } = useRehabStore();
-  const [email, setEmail] = useState('');
+  const { fetchReports, aiInsights, fetchInsights, userId } = useRehabStore();
+  const [report, setReport] = useState<ReportData | null>(null);
+  const [loading, setLoading] = useState(true);
 
-  const handleDownload = () => {
-    alert('Report downloaded successfully!');
-  };
-
-  const handleSendEmail = () => {
-    if (email) {
-      alert(`Report sent to ${email}`);
-      setEmail('');
+  useEffect(() => {
+    async function load() {
+      if (userId) {
+        const data = await fetchReports();
+        setReport(data);
+        await fetchInsights();
+        setLoading(false);
+      }
     }
-  };
+    load();
+  }, [userId]);
+
+  const stats = [
+    { label: 'Sessions Completed', value: report?.total_sessions || 0, icon: Activity, color: 'text-blue-600' },
+    { label: 'Total Repetitions', value: report?.total_reps || 0, icon: Target, color: 'text-teal-600' },
+    { label: 'Movement Accuracy', value: '88%', icon: Shield, color: 'text-purple-600' },
+  ];
+
+  if (loading) {
+    return (
+      <Layout>
+        <div className="flex items-center justify-center h-screen">
+          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        </div>
+      </Layout>
+    );
+  }
 
   return (
     <Layout>
       <div className="p-8">
-        <motion.div
-          initial={{ opacity: 0, y: -20 }}
-          animate={{ opacity: 1, y: 0 }}
-          className="mb-8"
-        >
-          <h1 className="text-3xl font-bold mb-2">Medical Reports</h1>
-          <p className="text-muted-foreground">
-            Generate and share comprehensive recovery reports with your healthcare provider
-          </p>
-        </motion.div>
-
-        <div className="grid lg:grid-cols-3 gap-6">
+        <div className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4">
           <motion.div
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.1 }}
-            className="lg:col-span-2"
           >
-            <div className="bg-white rounded-2xl border-2 border-border shadow-lg p-8">
-              <div className="flex items-center justify-between mb-8 pb-6 border-b">
-                <div>
-                  <h2 className="text-2xl font-bold">Recovery Progress Report</h2>
-                  <p className="text-muted-foreground">
-                    Generated on {new Date().toLocaleDateString()}
-                  </p>
-                </div>
-                <div className="w-16 h-16 bg-gradient-to-br from-primary to-purple-600 rounded-xl flex items-center justify-center">
-                  <FileText className="w-8 h-8 text-white" />
-                </div>
-              </div>
-
-              <div className="space-y-8">
-                <section>
-                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <Activity className="w-5 h-5 text-primary" />
-                    Summary
-                  </h3>
-                  <div className="grid md:grid-cols-3 gap-4">
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm text-muted-foreground mb-1">Total Sessions</p>
-                      <p className="text-3xl font-bold text-primary">{userStats.totalSessions}</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm text-muted-foreground mb-1">Avg Accuracy</p>
-                      <p className="text-3xl font-bold text-primary">{userStats.averageAccuracy}%</p>
-                    </div>
-                    <div className="bg-gray-50 rounded-xl p-4">
-                      <p className="text-sm text-muted-foreground mb-1">Recovery Score</p>
-                      <p className="text-3xl font-bold text-primary">{userStats.recoveryScore}</p>
-                    </div>
-                  </div>
-                </section>
-
-                <section>
-                  <h3 className="text-xl font-semibold mb-4">Accuracy Trends</h3>
-                  <div className="bg-gray-50 rounded-xl p-6">
-                    <div className="space-y-4">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Week 1</span>
-                        <div className="flex-1 mx-4 bg-gray-200 rounded-full h-3 overflow-hidden">
-                          <div className="bg-primary h-full rounded-full" style={{ width: '75%' }} />
-                        </div>
-                        <span className="text-sm font-medium">75%</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Week 2</span>
-                        <div className="flex-1 mx-4 bg-gray-200 rounded-full h-3 overflow-hidden">
-                          <div className="bg-primary h-full rounded-full" style={{ width: '78%' }} />
-                        </div>
-                        <span className="text-sm font-medium">78%</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Week 3</span>
-                        <div className="flex-1 mx-4 bg-gray-200 rounded-full h-3 overflow-hidden">
-                          <div className="bg-primary h-full rounded-full" style={{ width: '82%' }} />
-                        </div>
-                        <span className="text-sm font-medium">82%</span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Week 4</span>
-                        <div className="flex-1 mx-4 bg-gray-200 rounded-full h-3 overflow-hidden">
-                          <div className="bg-primary h-full rounded-full" style={{ width: '88%' }} />
-                        </div>
-                        <span className="text-sm font-medium">88%</span>
-                      </div>
-                    </div>
-                  </div>
-                </section>
-
-                <section>
-                  <h3 className="text-xl font-semibold mb-4 flex items-center gap-2">
-                    <Calendar className="w-5 h-5 text-primary" />
-                    Session Log
-                  </h3>
-                  <div className="space-y-3">
-                    {sessions.slice(0, 10).map((session) => (
-                      <div key={session.id} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
-                        <div>
-                          <p className="font-medium">{session.exerciseName}</p>
-                          <p className="text-sm text-muted-foreground">{session.date}</p>
-                        </div>
-                        <div className="flex items-center gap-6">
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">Duration</p>
-                            <p className="font-medium">{session.duration} min</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">Reps</p>
-                            <p className="font-medium">{session.repsCompleted}</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-sm text-muted-foreground">Accuracy</p>
-                            <p className="font-medium text-primary">{session.accuracy}%</p>
-                          </div>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </section>
-
-                <section className="bg-gradient-to-br from-primary/10 to-purple-600/10 rounded-xl p-6 border border-primary/20">
-                  <h3 className="text-xl font-semibold mb-4">Recommendations</h3>
-                  <ul className="space-y-3">
-                    <li className="flex items-start gap-3">
-                      <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-white text-xs font-bold">1</span>
-                      </div>
-                      <p className="text-sm">
-                        Continue focusing on knee stability exercises to improve overall recovery score
-                      </p>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-white text-xs font-bold">2</span>
-                      </div>
-                      <p className="text-sm">
-                        Maintain current session frequency (5 days/week) for optimal progress
-                      </p>
-                    </li>
-                    <li className="flex items-start gap-3">
-                      <div className="w-6 h-6 bg-primary rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-white text-xs font-bold">3</span>
-                      </div>
-                      <p className="text-sm">
-                        Consider increasing shoulder rotation reps by 20% next week
-                      </p>
-                    </li>
-                  </ul>
-                </section>
-              </div>
-            </div>
+            <h1 className="text-3xl font-bold mb-2">Recovery Reports</h1>
+            <p className="text-muted-foreground">Download and share your clinical progress</p>
           </motion.div>
 
           <motion.div
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
-            transition={{ delay: 0.2 }}
-            className="space-y-6"
+            className="flex gap-3"
           >
-            <div className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm">
-              <h3 className="font-semibold mb-4">Export Report</h3>
-              <button
-                onClick={handleDownload}
-                className="w-full bg-primary text-white py-3 rounded-xl font-medium hover:bg-primary/90 transition-all flex items-center justify-center gap-2 mb-3"
-              >
-                <Download className="w-5 h-5" />
-                Download PDF
-              </button>
-              <p className="text-xs text-muted-foreground text-center">
-                Generate a printable version of this report
-              </p>
-            </div>
-
-            <div className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm">
-              <h3 className="font-semibold mb-4 flex items-center gap-2">
-                <Mail className="w-5 h-5 text-primary" />
-                Share with Doctor
-              </h3>
-              <div className="space-y-3">
-                <input
-                  type="email"
-                  placeholder="doctor@example.com"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  className="w-full p-3 bg-white border border-border rounded-xl focus:outline-none focus:ring-2 focus:ring-primary/50"
-                />
-                <button
-                  onClick={handleSendEmail}
-                  className="w-full bg-secondary text-white py-3 rounded-xl font-medium hover:bg-secondary/90 transition-all flex items-center justify-center gap-2"
-                >
-                  <Send className="w-5 h-5" />
-                  Send Email
-                </button>
-              </div>
-            </div>
-
-            <div className="bg-gradient-to-br from-secondary/10 to-secondary/5 rounded-2xl p-6 border border-secondary/20">
-              <h3 className="font-semibold mb-3">Report Details</h3>
-              <div className="space-y-2 text-sm">
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Period</span>
-                  <span className="font-medium">Last 30 days</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Sessions</span>
-                  <span className="font-medium">{sessions.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Format</span>
-                  <span className="font-medium">PDF</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-muted-foreground">Size</span>
-                  <span className="font-medium">~2.4 MB</span>
-                </div>
-              </div>
-            </div>
+            <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl border border-border hover:bg-gray-50 transition-all font-medium">
+              <Mail className="w-4 h-4" />
+              Share with Doctor
+            </button>
+            <button className="flex items-center gap-2 px-4 py-2.5 rounded-xl bg-primary text-white hover:bg-primary/90 shadow-lg shadow-primary/20 transition-all font-medium">
+              <Download className="w-4 h-4" />
+              Download PDF
+            </button>
           </motion.div>
+        </div>
+
+        <div className="grid lg:grid-cols-3 gap-8">
+          <div className="lg:col-span-2 space-y-8">
+            {/* Clinical Overview */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="bg-card rounded-2xl p-8 border border-border/50 shadow-sm"
+            >
+              <div className="flex items-center gap-2 mb-8">
+                <FileText className="w-6 h-6 text-primary" />
+                <h2 className="text-xl font-bold">Clinical Progress Summary</h2>
+              </div>
+
+              <div className="grid sm:grid-cols-3 gap-6 mb-10">
+                {stats.map((stat, idx) => (
+                  <div key={idx} className="p-4 rounded-xl bg-gray-50">
+                    <stat.icon className={`w-5 h-5 mb-2 ${stat.color}`} />
+                    <p className="text-2xl font-bold">{stat.value}</p>
+                    <p className="text-sm text-muted-foreground">{stat.label}</p>
+                  </div>
+                ))}
+              </div>
+
+              <div className="space-y-6">
+                <div>
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Activity className="w-5 h-5 text-primary" />
+                    Accuracy Trends
+                  </h3>
+                  <div className="space-y-3">
+                    {[
+                      { week: 'Week 1', val: 75 },
+                      { week: 'Week 2', val: 82 },
+                      { week: 'Week 3', val: 85 },
+                      { week: 'Week 4', val: 88 },
+                    ].map((w, i) => (
+                      <div key={i} className="space-y-1">
+                        <div className="flex justify-between text-xs font-medium">
+                          <span>{w.week}</span>
+                          <span>{w.val}%</span>
+                        </div>
+                        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                          <motion.div
+                            initial={{ width: 0 }}
+                            animate={{ width: `${w.val}%` }}
+                            transition={{ duration: 1, delay: i * 0.1 }}
+                            className="h-full bg-primary"
+                          />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="font-semibold mb-3 flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-primary" />
+                    AI Medical Insights
+                  </h3>
+                  <div className="space-y-3">
+                    {aiInsights?.report_recommendations.map((rec, i) => (
+                      <div key={i} className="flex gap-3 p-4 rounded-xl bg-blue-50 border border-blue-100">
+                        <div className="w-6 h-6 rounded-full bg-blue-600 text-white flex items-center justify-center text-xs shrink-0 mt-0.5">
+                          {i + 1}
+                        </div>
+                        <p className="text-sm text-blue-900 leading-relaxed">
+                          {rec}
+                        </p>
+                      </div>
+                    )) || <p className="text-sm text-muted-foreground">Complete more sessions to generate clinical insights.</p>}
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Error Analysis */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.2 }}
+              className="bg-card rounded-2xl p-8 border border-border/50 shadow-sm"
+            >
+              <h2 className="text-xl font-bold mb-6 flex items-center gap-2">
+                <AlertCircle className="w-6 h-6 text-amber-500" />
+                Form Error Analysis
+              </h2>
+              <div className="space-y-4">
+                {report?.form_errors_summary && Object.keys(report.form_errors_summary).length > 0 ? (
+                  Object.entries(report.form_errors_summary).map(([error, count], idx) => (
+                    <div key={idx} className="flex items-center justify-between p-4 bg-gray-50 rounded-xl">
+                      <div>
+                        <p className="font-medium capitalize">{error.replace(/_/g, ' ')}</p>
+                        <p className="text-xs text-muted-foreground">Identified corrective behavior needed</p>
+                      </div>
+                      <div className="text-right">
+                        <p className="font-bold text-lg text-amber-600">{count}</p>
+                        <p className="text-xs text-muted-foreground">Occurrences</p>
+                      </div>
+                    </div>
+                  ))
+                ) : (
+                  <p className="text-muted-foreground text-center py-4">Great job! No significant form errors detected.</p>
+                )}
+              </div>
+            </motion.div>
+          </div>
+
+          <div className="space-y-6">
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="bg-card rounded-2xl p-6 border border-border/50 shadow-sm"
+            >
+              <h3 className="font-bold mb-4">Patient Information</h3>
+              <div className="space-y-4">
+                <div>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Patient Name</label>
+                  <p className="font-medium">{useRehabStore.getState().userName || 'John Doe'}</p>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Programme ID</label>
+                  <p className="font-medium font-mono">RX-2024-001</p>
+                </div>
+                <div>
+                  <label className="text-xs font-bold text-muted-foreground uppercase tracking-wider">Start Date</label>
+                  <p className="font-medium">March 15, 2024</p>
+                </div>
+              </div>
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ delay: 0.1 }}
+              className="bg-primary text-white rounded-2xl p-6 shadow-xl shadow-primary/30"
+            >
+              <h3 className="font-bold mb-2">Ready to progress?</h3>
+              <p className="text-white/80 text-sm mb-4">You've completed 80% of your current phase. New exercises are available.</p>
+              <button className="w-full bg-white text-primary py-2 rounded-xl font-bold flex items-center justify-center gap-2 hover:bg-opacity-90 transition-all">
+                Update Plan
+                <ChevronRight className="w-4 h-4" />
+              </button>
+            </motion.div>
+          </div>
         </div>
       </div>
     </Layout>
